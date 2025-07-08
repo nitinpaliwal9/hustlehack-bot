@@ -80,13 +80,22 @@ def get_roadmap(prompt):
         ]
     }
 
-    response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
-    result = response.json()
-    return result["choices"][0]["message"]["content"]
+    try:
+        response = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers=headers,
+            json=payload
+        )
+        response.raise_for_status()
+        result = response.json()
+        print("✅ OpenRouter response:", result)  # This helps debug
 
-async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("❌ Conversation cancelled.")
-    return ConversationHandler.END
+        return result["choices"][0]["message"]["content"]
+
+    except Exception as e:
+        print("❌ OpenRouter ERROR:", e)
+        return "⚠️ Sorry, something went wrong while generating your roadmap. Please try again later."
+
 
 # === App Setup ===
 app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()

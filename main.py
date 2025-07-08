@@ -103,7 +103,6 @@ app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 conv_handler = ConversationHandler(
     entry_points=[CommandHandler("start", start)],
     states={1: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_answer)]},
-    fallbacks=[CommandHandler("cancel", cancel)],
 )
 
 app.add_handler(conv_handler)

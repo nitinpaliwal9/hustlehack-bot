@@ -12,8 +12,8 @@ from telegram.ext import (
 )
 
 # === Your Keys ===
-TELEGRAM_BOT_TOKEN = "PASTE_YOUR_TELEGRAM_BOT_TOKEN"
-OPENROUTER_API_KEY = "PASTE_YOUR_OPENROUTER_API_KEY"
+TELEGRAM_BOT_TOKEN = "7801820890:AAFvK8cGpjeJDCice0Ou9DOo_H5sRYDwuGc"
+OPENROUTER_API_KEY = "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"
 
 # === Enable Logs ===
 logging.basicConfig(level=logging.INFO)
@@ -74,7 +74,7 @@ def get_roadmap(prompt):
     }
 
     payload = {
-        "model": "openai/gpt-3.5-turbo",
+        "model": "mistralai/mistral-7b-instruct",
         "messages": [
             {"role": "system", "content": "You're an expert roadmap generator for creators, students, and founders."},
             {"role": "user", "content": f"Based on this information, create a detailed 4-week AI roadmap:\n{prompt}"}

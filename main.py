@@ -1,5 +1,5 @@
 import logging
-import openai
+import mistralai
 import requests
 from telegram import Update
 from telegram.ext import (

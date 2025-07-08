@@ -1,70 +1,86 @@
 import logging
 import requests
-from telegram import Update
+from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
-    ContextTypes,
     MessageHandler,
-    filters,
     ConversationHandler,
+    ContextTypes,
+    filters,
 )
 
-# === Your Keys ===
-TELEGRAM_BOT_TOKEN = "7801820890:AAFvK8cGpjeJDCice0Ou9DOo_H5sRYDwuGc"
-OPENROUTER_API_KEY = "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"
+import os
 
-# === Enable Logs ===
-logging.basicConfig(level=logging.INFO)
+TELEGRAM_BOT_TOKEN = os.getenv("7801820890:AAFvK8cGpjeJDCice0Ou9DOo_H5sRYDwuGc")
+OPENROUTER_API_KEY = os.getenv("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")
 
-# === Conversation Stages ===
-QUESTIONS = [
-    "🎯 What's your main goal?",
-    "📚 What's your current skill level? (Beginner / Intermediate / Pro)",
-    "⏰ How many hours per week can you dedicate?",
-    "📌 Do you prefer hands-on practice, videos, or reading?",
-    "⚙️ Are you focusing on personal growth or building a startup?",
-    "🧰 Do you want AI tools, prompt templates, or both?",
-    "🗓️ Do you have a deadline or target month?"
-]
+# Enable logging
+logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-ANSWERS = {}
+# Define conversation states
+GOAL, SKILL, TIME, DOMAIN, EXPERIENCE, OUTPUT, STYLE, CONFIRM = range(8)
+
+user_data = {}
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    ANSWERS[user_id] = {"step": 0, "answers": []}
-    await update.message.reply_text("👋 Welcome to HustleHack AI Roadmapper!\nLet's build your 4-week AI-powered roadmap. Ready?")
-    await update.message.reply_text(QUESTIONS[0])
-    return 1
+    await update.message.reply_text("👋 Welcome to HustleHack AI Roadmapper!\nLet’s build your 4-week AI-powered roadmap.\n\nWhat’s your goal? (e.g., Learn AI tools for marketing)")
+    return GOAL
 
-async def handle_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    data = ANSWERS.get(user_id)
+async def ask_skill(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_data[update.effective_user.id] = {"goal": update.message.text}
+    reply_keyboard = [["Beginner", "Intermediate", "Pro"]]
+    await update.message.reply_text("What’s your current skill level?", reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True))
+    return SKILL
 
-    if not data:
-        await update.message.reply_text("Please type /start to begin.")
-        return ConversationHandler.END
+async def ask_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_data[update.effective_user.id]["skill"] = update.message.text
+    await update.message.reply_text("How many hours per week can you spend on this? (e.g., 5h, 10h)")
+    return TIME
 
-    step = data["step"]
-    data["answers"].append(update.message.text)
+async def ask_domain(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_data[update.effective_user.id]["time"] = update.message.text
+    await update.message.reply_text("Which field or domain are you targeting? (e.g., content creation, startups, freelancing)")
+    return DOMAIN
 
-    step += 1
-    if step < len(QUESTIONS):
-        data["step"] = step
-        await update.message.reply_text(QUESTIONS[step])
-        return 1
-    else:
-        await update.message.reply_text("⏳ Generating your roadmap...")
-        full_prompt = "\n".join(
-            [f"Q{i+1}: {q}\nA: {a}" for i, (q, a) in enumerate(zip(QUESTIONS, data["answers"]))]
-        )
+async def ask_experience(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_data[update.effective_user.id]["domain"] = update.message.text
+    await update.message.reply_text("Do you have any prior experience in this field? (Yes/No)")
+    return EXPERIENCE
 
-        roadmap = get_roadmap(full_prompt)
-        await update.message.reply_text("✅ Here's your personalized roadmap:")
-        await update.message.reply_text(roadmap)
+async def ask_output(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_data[update.effective_user.id]["experience"] = update.message.text
+    await update.message.reply_text("What kind of output do you want at the end of 4 weeks? (e.g., launch a tool, land a client, build portfolio)")
+    return OUTPUT
 
-        del ANSWERS[user_id]
-        return ConversationHandler.END
+async def ask_style(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_data[update.effective_user.id]["output"] = update.message.text
+    await update.message.reply_text("What learning style works best for you? (e.g., hands-on, video-based, written guides)")
+    return STYLE
+
+async def generate_roadmap(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_data[update.effective_user.id]["style"] = update.message.text
+    await update.message.reply_text("⏳ Generating your roadmap... Please wait.")
+
+    u = user_data[update.effective_user.id]
+    prompt = f"""
+    Build a 4-week AI-powered learning and execution roadmap for the following:
+    Goal: {u['goal']}
+    Skill Level: {u['skill']}
+    Time Available: {u['time']} per week
+    Domain: {u['domain']}
+    Prior Experience: {u['experience']}
+    Output Expected: {u['output']}
+    Preferred Style: {u['style']}
+
+    Include weekly breakdowns with topics, tools, micro-tasks, prompts, and a motivational message.
+    """
+
+    roadmap = get_roadmap(prompt)
+    await update.message.reply_text(roadmap)
+    return ConversationHandler.END
+
 
 def get_roadmap(prompt):
     headers = {
@@ -75,38 +91,46 @@ def get_roadmap(prompt):
     payload = {
         "model": "mistralai/mistral-7b-instruct",
         "messages": [
-            {"role": "system", "content": "You're an expert roadmap generator for creators, students, and founders."},
-            {"role": "user", "content": f"Based on this information, create a detailed 4-week AI roadmap:\n{prompt}"}
+            {"role": "system", "content": "You're a helpful roadmap generator."},
+            {"role": "user", "content": prompt}
         ]
     }
 
     try:
-        response = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers=headers,
-            json=payload
-        )
+        response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
         response.raise_for_status()
         result = response.json()
-        print("✅ OpenRouter response:", result)  # This helps debug
-
+        print("✅ OpenRouter response:", result)
         return result["choices"][0]["message"]["content"]
-
     except Exception as e:
         print("❌ OpenRouter ERROR:", e)
         return "⚠️ Sorry, something went wrong while generating your roadmap. Please try again later."
 
+async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("❌ Cancelled. You can restart anytime with /start.")
+    return ConversationHandler.END
 
-# === App Setup ===
-app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
-conv_handler = ConversationHandler(
-    entry_points=[CommandHandler("start", start)],
-    states={1: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_answer)]},
-)
+def main():
+    app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
-app.add_handler(conv_handler)
+    conv_handler = ConversationHandler(
+        entry_points=[CommandHandler("start", start)],
+        states={
+            GOAL: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_skill)],
+            SKILL: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_time)],
+            TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_domain)],
+            DOMAIN: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_experience)],
+            EXPERIENCE: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_output)],
+            OUTPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_style)],
+            STYLE: [MessageHandler(filters.TEXT & ~filters.COMMAND, generate_roadmap)],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
+
+    app.add_handler(conv_handler)
+    app.run_polling()
+
 
 if __name__ == "__main__":
-    print("🤖 Bot is running...")
-    app.run_polling()
+    main()

@@ -12,8 +12,8 @@ from telegram.ext import (
 
 import os
 
-TELEGRAM_BOT_TOKEN = os.getenv("7801820890:AAFvK8cGpjeJDCice0Ou9DOo_H5sRYDwuGc")
-OPENROUTER_API_KEY = os.getenv("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")
+TELEGRAM_BOT_TOKEN = "7801820890:AAFvK8cGpjeJDCice0Ou9DOo_H5sRYDwuGc"
+OPENROUTER_API_KEY = "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"
 
 # Enable logging
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)

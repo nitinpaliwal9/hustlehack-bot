@@ -13,7 +13,7 @@ from telegram.ext import (
 import os
 
 TELEGRAM_BOT_TOKEN = "7801820890:AAFvK8cGpjeJDCice0Ou9DOo_H5sRYDwuGc"
-OPENROUTER_API_KEY = "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"
+OPENROUTER_API_KEY = "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"
 
 # Enable logging
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
